@@ -15,9 +15,9 @@ object Counter {
   def apply[F[_]](implicit F: Sync[F]): F[Counter[F]] = startAt[F](0)
 
   def startAt[F[_]](initial: Long)(implicit F: Sync[F]): F[Counter[F]] =
-    Ref[F].of(initial).map(new CounterImpl[F](initial, _))
+    Ref[F].of(initial).map(new Impl[F](initial, _))
 
-  private class CounterImpl[F[_]](initial: Long, value: Ref[F, Long]) extends Counter[F] {
+  private class Impl[F[_]](initial: Long, value: Ref[F, Long]) extends Counter[F] {
     def increment(): F[Unit] = incrementBy(1)
     def incrementBy(amount: Long): F[Unit] =
       value.modify(curr => (curr + amount, ()))

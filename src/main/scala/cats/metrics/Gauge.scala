@@ -11,9 +11,9 @@ trait Gauge[F[_], A] extends Instrument[F, A] {
 
 object Gauge {
   def of[F[_]: Sync, A: Numeric](initial: A): F[Gauge[F, A]] =
-    Ref[F].of(initial).map(new GaugeImpl[F, A](initial, _))
+    Ref[F].of(initial).map(new Impl[F, A](initial, _))
 
-  private class GaugeImpl[F[_], A: Numeric](initial: A, value: Ref[F, A]) extends Gauge[F, A] {
+  private class Impl[F[_], A: Numeric](initial: A, value: Ref[F, A]) extends Gauge[F, A] {
     def set(v: A): F[Unit] = value.set(v)
 
     def peek(): F[A] = value.get

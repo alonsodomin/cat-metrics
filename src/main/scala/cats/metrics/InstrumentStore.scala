@@ -9,9 +9,9 @@ trait InstrumentStore[F[_]] {
 }
 object InstrumentStore {
   def apply[F[_]: Sync]: F[InstrumentStore[F]] =
-    Ref[F].of(Map.empty[String, Counter[F]]).map(new InstrumentStoreImpl[F](_))
+    Ref[F].of(Map.empty[String, Counter[F]]).map(new Impl[F](_))
 
-  private class InstrumentStoreImpl[F[_]](countersRef: Ref[F, Map[String, Counter[F]]])(implicit F: Sync[F]) extends InstrumentStore[F] {
+  private class Impl[F[_]](countersRef: Ref[F, Map[String, Counter[F]]])(implicit F: Sync[F]) extends InstrumentStore[F] {
     def counter(name: String, initial: Long): F[Counter[F]] = {
       def createCounter = for {
         counter <- Counter.startAt[F](initial)
