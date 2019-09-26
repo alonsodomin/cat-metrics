@@ -1,11 +1,16 @@
 package cats.metrics
 
-import cats.effect.Sync
+import cats.effect.{Sync, Timer}
 import cats.implicits._
+
+import fs2.Stream
 
 import org.HdrHistogram.AtomicHistogram
 
-trait Histogram[F[_]] {
+import scala.concurrent.duration.FiniteDuration
+
+trait Histogram[F[_]] extends Instrument[F] {
+  type Value = Long
 
   def record(value: Long): F[Unit]
 
@@ -13,12 +18,17 @@ trait Histogram[F[_]] {
 
 object Histogram {
 
-  def in[F[_]](dynamicRange: DynamicRange = DynamicRange.Default)(implicit F: Sync[F]): F[Histogram[F]] =
+  def apply[F[_]: Sync: Timer]: F[Histogram[F]] = in[F](dynamicRange = DynamicRange.Default)
+
+  def in[F[_]: Timer](dynamicRange: DynamicRange)(implicit F: Sync[F]): F[Histogram[F]] =
     F.delay(new AtomicHistogram(dynamicRange.lowestDiscernibleValue, dynamicRange.highestTrackableValue, dynamicRange.significantValueDigits))
       .map(new Impl(_))
 
-  private class Impl[F[_]](hist: AtomicHistogram)(implicit F: Sync[F]) extends Histogram[F] {
-    override def record(value: Long): F[Unit] = F.delay(hist.recordValue(value))
+  private class Impl[F[_]: Timer](hist: AtomicHistogram)(implicit F: Sync[F]) extends Histogram[F] {
+    def record(value: Long): F[Unit] = F.delay(hist.recordValue(value))
+
+    def subscribe(frequency: FiniteDuration): Stream[F, Long] =
+      Stream.awakeEvery[F](frequency).evalMap(_ => F.delay(hist.getTotalCount))
   }
 
 }

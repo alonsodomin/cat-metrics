@@ -1,7 +1,12 @@
 package cats
 package metrics
 
-trait Instrument[F[_], A] {
-  def peek(): F[A]
-  def reset(): F[A]
+import fs2.Stream
+
+import scala.concurrent.duration.FiniteDuration
+
+trait Instrument[F[_]] {
+  type Value
+
+  def subscribe(frequency: FiniteDuration): Stream[F, Value]
 }

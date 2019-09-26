@@ -9,11 +9,11 @@ import fs2.Stream
 
 import scala.concurrent.duration._
 
-trait Counter[F[_]] extends Instrument[F, Long] {
+trait Counter[F[_]] extends Instrument[F] {
+  type Value = Long
+
   def increment(): F[Unit]
   def incrementBy(amount: Long): F[Unit]
-
-  def data: Stream[F, Long]
 }
 
 object Counter {
@@ -31,8 +31,8 @@ object Counter {
     def peek(): F[Long] = value.get
     def reset(): F[Long] = value.getAndSet(initial)
 
-    def data: Stream[F, Long] = {
-      Stream.awakeDelay[F](5.seconds).evalMap(_ => value.get)
+    def subscribe(frequency: FiniteDuration): Stream[F, Long] = {
+      Stream.awakeEvery[F](frequency).evalMap(_ => value.get)
     }
   }
 

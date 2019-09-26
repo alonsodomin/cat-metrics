@@ -2,30 +2,27 @@ package cats.metrics
 
 import java.util.concurrent.TimeUnit
 
-import cats.effect.{Clock, Concurrent}
+import cats.effect.{Clock, Sync, Timer}
 import cats.effect.implicits._
 import cats.implicits._
 
-import fs2.Stream
-import fs2.concurrent.Topic
-
 import scala.concurrent.duration.{FiniteDuration, TimeUnit}
 
-trait Chronometer[F[_]] {
+trait Chronometer[F[_]] extends Instrument[F] {
+  type Value = FiniteDuration
 
   def measure[A](fa: F[A]): F[A]
-
-  def data: Stream[F, FiniteDuration]
 
 }
 
 object Chronometer {
-  def apply[F[_]: Concurrent](implicit clock: Clock[F]): F[Chronometer[F]] = of[F](TimeUnit.MICROSECONDS)
+  def apply[F[_]: Sync](implicit timer: Timer[F]): F[Chronometer[F]] =
+    of[F](TimeUnit.MICROSECONDS, DynamicRange.Default)
 
-  def of[F[_]: Concurrent](precision: TimeUnit)(implicit clock: Clock[F]): F[Chronometer[F]] =
-    Topic[F, FiniteDuration](FiniteDuration(0, precision)).map(new Impl[F](precision, _))
+  def of[F[_]: Sync](precision: TimeUnit, dynamicRange: DynamicRange)(implicit timer: Timer[F]): F[Chronometer[F]] =
+    Histogram.in[F](dynamicRange).map(new Impl[F](precision, _))
 
-  private class Impl[F[_]](precision: TimeUnit, topic: Topic[F, FiniteDuration])(implicit F: Concurrent[F], clock: Clock[F]) extends Chronometer[F] {
+  private class Impl[F[_]](precision: TimeUnit, histogram: Histogram[F])(implicit F: Sync[F], clock: Clock[F]) extends Chronometer[F] {
 
     def measure[A](fa: F[A]): F[A] = {
       for {
@@ -39,11 +36,12 @@ object Chronometer {
     def reportElapsedTime(startTime: Long): F[Unit] = {
       for {
         duration <- captureTime.map(endTime => FiniteDuration(endTime - startTime, precision))
-        _ <- topic.publish1(duration)
+        _ <- histogram.record(duration.toUnit(precision).toLong)
       } yield ()
     }
 
-    override def data: Stream[F, FiniteDuration] = topic.subscribe(1)
+    def subscribe(frequency: FiniteDuration): fs2.Stream[F, FiniteDuration] =
+      histogram.subscribe(frequency).map(FiniteDuration(_, precision))
   }
 
 }
