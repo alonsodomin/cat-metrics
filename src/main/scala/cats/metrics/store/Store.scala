@@ -3,16 +3,22 @@ package cats.metrics.store
 import cats.effect.concurrent.Ref
 import cats.effect.{Sync, Timer}
 import cats.implicits._
-import cats.metrics.instrument.{Counter, Gauge, Instrument}
+import cats.metrics.instrument.{Chronometer, Counter, DynamicRange, Gauge, Histogram, Instrument}
 
 import monocle.Lens
 import monocle.macros.Lenses
+
+import scala.concurrent.duration.TimeUnit
 
 trait Store[F[_]] {
 
   def counter(name: String, initial: Long = 0L): F[Counter[F]]
 
   def gauge(name: String, initial: Double = 0.0): F[Gauge[F]]
+
+  def histogram(name: String, dynamicRange: DynamicRange = DynamicRange.Default): F[Histogram[F]]
+
+  def chronometer(name: String, precision: TimeUnit, dynamicRange: DynamicRange = DynamicRange.Default): F[Chronometer[F]]
 
   def snapshot: F[Snapshot]
 
@@ -22,10 +28,12 @@ object Store {
   @Lenses
   private case class Instruments[F[_]](
       counters: Map[String, Counter[F]],
-      gauges: Map[String, Gauge[F]]
+      gauges: Map[String, Gauge[F]],
+      histograms: Map[String, Histogram[F]],
+      chronometers: Map[String, Chronometer[F]]
   )
   private object Instruments {
-    def empty[F[_]]: Instruments[F] = Instruments(Map.empty, Map.empty)
+    def empty[F[_]]: Instruments[F] = Instruments(Map.empty, Map.empty, Map.empty, Map.empty)
   }
 
   def apply[F[_]: Sync: Timer]: F[Store[F]] =
@@ -42,6 +50,11 @@ object Store {
     def gauge(name: String, initial: Double): F[Gauge[F]] =
       instrument[Gauge[F]](name, Instruments.gauges, Gauge(_, initial))
 
+    def histogram(name: String, dynamicRange: DynamicRange): F[Histogram[F]] =
+      instrument[Histogram[F]](name, Instruments.histograms, Histogram(_, dynamicRange))
+
+    def chronometer(name: String, precision: TimeUnit, dynamicRange: DynamicRange): F[Chronometer[F]] = ???
+
     def snapshot: F[Snapshot] = {
       def snapshotThem[A](insts: List[(String, Instrument.Aux[F, A])]): F[List[Metric[A]]] =
         insts.traverse { case (name, inst) => inst.get.map(Metric(name, _)) }
@@ -49,7 +62,9 @@ object Store {
       instrumentsRef.get.flatMap { instruments =>
         val counters = snapshotThem(instruments.counters.toList)
         val gauges   = snapshotThem(instruments.gauges.toList)
-        (counters, gauges).mapN(Snapshot.apply)
+        val histograms = snapshotThem(instruments.histograms.toList)
+        val chronometers = snapshotThem(instruments.chronometers.toList)
+        (counters, gauges, histograms, chronometers).mapN(Snapshot.apply)
       }
     }
 
@@ -72,34 +87,5 @@ object Store {
     }
 
   }
-
-//  case class Snapshot(counters: Map[String, Instrument.Snapshot[Long]])
-//
-//  type Store[F[_], Inst] = StateT[F, Map[String, Inst], Inst]
-//
-//  def counter[F[_]: Sync: Timer](name: String, initial: Long = 0L): Store[F, Counter[F]] =
-//    instrument[F, Counter[F]](name)(Counter.startAt(initial))
-//
-//  def gauge[F[_]: Sync: Timer, A](name: String)(implicit A: Monoid[A]): Store[F, Gauge[F]] = gauge[F, A](name, A.empty)
-//  def gauge[F[_]: Sync: Timer, A](name: String, initial: A): Store[F, Gauge[F]] =
-//    instrument[F, Gauge[F]](name)(Gauge.of(initial))
-//
-//  def histogram[F[_]: Sync: Timer](name: String, dynamicRange: DynamicRange): Store[F, Histogram[F]] =
-//    instrument[F, Histogram[F]](name)(Histogram.in[F](dynamicRange))
-//
-//  def chronometer[F[_]: Sync: Timer](name: String, precision: TimeUnit, dynamicRange: DynamicRange): Store[F, Chronometer[F]] =
-//    instrument[F, Chronometer[F]](name)(Chronometer.of(precision, dynamicRange))
-//
-//  private def instrument[F[_]: Timer, Inst <: Instrument[F]](name: String)(createInstrument: F[Inst])(implicit F: Sync[F]): Store[F, Inst] =
-//    StateT { instruments =>
-//      def doCreate = for {
-//        inst <- createInstrument
-//        newInstrumentMap <- F.pure(instruments + (name -> inst))
-//      } yield (newInstrumentMap, inst)
-//
-//      F.pure(instruments.get(name)).flatMap { instOpt =>
-//        instOpt.fold(doCreate)(i => F.pure(instruments -> i))
-//      }
-//    }
 
 }

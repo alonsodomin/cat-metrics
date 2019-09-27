@@ -11,3 +11,13 @@ libraryDependencies ++= Seq(
   "org.typelevel"              %% "cats-effect"   % "2.0.0",
   "co.fs2"                     %% "fs2-core"      % "2.0.0"
 )
+
+initialCommands in console += Seq(
+  "import cats._",
+  "import cats.implicits._",
+  "import cats.effect._",
+  "import scala.concurrent.duration._",
+  "import scala.concurrent.ExecutionContext",
+  "implicit val contextShift: ContextShift[IO] = IO.contextShift(ExecutionContext.global)",
+  "implicit val timer: Timer[IO] = IO.timer(ExecutionContext.global)"
+).mkString("\n")
