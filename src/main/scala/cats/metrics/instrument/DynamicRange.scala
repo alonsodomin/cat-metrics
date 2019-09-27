@@ -1,4 +1,4 @@
-package cats.metrics
+package cats.metrics.instrument
 
 import java.util.concurrent.TimeUnit
 

@@ -1,28 +1,30 @@
-package cats.metrics
+package cats.metrics.instrument
 
 import java.util.concurrent.TimeUnit
 
-import cats.effect.{Clock, Sync, Timer}
+import cats.data.Nested
 import cats.effect.implicits._
+import cats.effect.{Clock, Sync, Timer}
 import cats.implicits._
 
 import scala.concurrent.duration.{FiniteDuration, TimeUnit}
 
 trait Chronometer[F[_]] extends Instrument[F] {
-  type Value = FiniteDuration
+  type Value = Distribution[FiniteDuration]
 
   def measure[A](fa: F[A]): F[A]
 
 }
 
 object Chronometer {
-  def apply[F[_]: Sync](implicit timer: Timer[F]): F[Chronometer[F]] =
-    of[F](TimeUnit.MICROSECONDS, DynamicRange.Default)
 
-  def of[F[_]: Sync](precision: TimeUnit, dynamicRange: DynamicRange)(implicit timer: Timer[F]): F[Chronometer[F]] =
-    Histogram.in[F](dynamicRange).map(new Impl[F](precision, _))
+  def apply[F[_]: Sync](name: String, precision: TimeUnit = TimeUnit.MICROSECONDS, dynamicRange: DynamicRange = DynamicRange.Default)(implicit timer: Timer[F]): F[Chronometer[F]] =
+    Histogram[F](name, dynamicRange).map(new Impl[F](name, precision, _))
 
-  private class Impl[F[_]](precision: TimeUnit, histogram: Histogram[F])(implicit F: Sync[F], clock: Clock[F]) extends Chronometer[F] {
+  private class Impl[F[_]](val name: String, precision: TimeUnit, histogram: Histogram[F])(implicit F: Sync[F], clock: Clock[F]) extends Chronometer[F] {
+
+    def get: F[Distribution[FiniteDuration]] =
+      histogram.get.map(_.map(FiniteDuration(_, precision)))
 
     def measure[A](fa: F[A]): F[A] = {
       for {
@@ -40,8 +42,6 @@ object Chronometer {
       } yield ()
     }
 
-    def subscribe(frequency: FiniteDuration): fs2.Stream[F, FiniteDuration] =
-      histogram.subscribe(frequency).map(FiniteDuration(_, precision))
   }
 
 }
