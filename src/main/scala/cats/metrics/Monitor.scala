@@ -19,21 +19,24 @@ object Monitor {
 
   case class ReporterAlreadyDetached() extends Exception
 
-  def apply[F[_]: Concurrent: Timer](store: Store[F], flushFrequency: FiniteDuration): F[Monitor[F]] = {
-    def startFlushing(topic: Topic[F, Snapshot]) = {
-      Stream.awakeEvery[F](flushFrequency)
+  def apply[F[_]: Concurrent: Timer](
+      store: Store[F],
+      flushFrequency: FiniteDuration
+  ): F[Monitor[F]] = {
+    def startFlushing(topic: Topic[F, Snapshot]) =
+      Stream
+        .awakeEvery[F](flushFrequency)
         .evalMap(_ => store.snapshot)
         .filter(!_.isEmpty)
         .through(topic.publish)
         .compile
         .drain
         .start
-    }
 
     for {
-      topic <- Topic[F, Snapshot](Snapshot.Empty)
+      topic      <- Topic[F, Snapshot](Snapshot.Empty)
       flushFiber <- startFlushing(topic)
-      reporters <- Ref[F].of(Vector.empty[Fiber[F, Unit]])
+      reporters  <- Ref[F].of(Vector.empty[Fiber[F, Unit]])
     } yield new Impl[F](flushFiber, topic, reporters)
   }
 
@@ -62,13 +65,12 @@ object Monitor {
       } yield detachToken
     }
 
-    def shutdown(): F[Unit] = {
+    def shutdown(): F[Unit] =
       for {
-        _ <- flushFiber.cancel
+        _      <- flushFiber.cancel
         fibers <- attachedFibers.getAndSet(Vector.empty)
-        _ <- fibers.traverse_(_.cancel)
+        _      <- fibers.traverse_(_.cancel)
       } yield ()
-    }
   }
 
 }

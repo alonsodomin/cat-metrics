@@ -13,10 +13,11 @@ trait Counter[F[_]] extends Instrument[F] {
 
 object Counter {
 
-  def apply[F[_]: Sync : Timer](name: String, initial: Long = 0L): F[Counter[F]] =
+  def apply[F[_]: Sync: Timer](name: String, initial: Long = 0L): F[Counter[F]] =
     Ref[F].of(initial).map(new Impl[F](name, initial, _))
 
-  private class Impl[F[_]: Sync: Timer](val name: String, initial: Long, value: Ref[F, Long]) extends Counter[F] {
+  private class Impl[F[_]: Sync: Timer](val name: String, initial: Long, value: Ref[F, Long])
+      extends Counter[F] {
     def increment(): F[Unit] = incrementBy(1)
     def incrementBy(amount: Long): F[Unit] =
       value.modify(curr => (curr + amount, ()))

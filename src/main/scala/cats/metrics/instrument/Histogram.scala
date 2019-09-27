@@ -14,14 +14,22 @@ trait Histogram[F[_]] extends Instrument[F] {
 
 object Histogram {
 
-  def apply[F[_]: Timer](name: String, dynamicRange: DynamicRange = DynamicRange.Default)(implicit F: Sync[F]): F[Histogram[F]] =
-    F.delay(new AtomicHistogram(dynamicRange.lowestDiscernibleValue, dynamicRange.highestTrackableValue, dynamicRange.significantValueDigits))
+  def apply[F[_]: Timer](name: String, dynamicRange: DynamicRange = DynamicRange.Default)(
+      implicit F: Sync[F]
+  ): F[Histogram[F]] =
+    F.delay(
+        new AtomicHistogram(
+          dynamicRange.lowestDiscernibleValue,
+          dynamicRange.highestTrackableValue,
+          dynamicRange.significantValueDigits
+        )
+      )
       .map(new Impl(name, _))
 
-  private class Impl[F[_]: Timer](val name: String, hist: AtomicHistogram)(implicit F: Sync[F]) extends Histogram[F] {
-    def get: F[Distribution[Long]] = {
+  private class Impl[F[_]: Timer](val name: String, hist: AtomicHistogram)(implicit F: Sync[F])
+      extends Histogram[F] {
+    def get: F[Distribution[Long]] =
       F.delay(Distribution(hist.getTotalCount))
-    }
 
     def record(value: Long): F[Unit] = F.delay(hist.recordValue(value))
 

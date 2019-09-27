@@ -21,20 +21,20 @@ trait Store[F[_]] {
 object Store {
   @Lenses
   private case class Instruments[F[_]](
-                                  counters: Map[String, Counter[F]],
-                                  gauges: Map[String, Gauge[F]]
-                                  )
+      counters: Map[String, Counter[F]],
+      gauges: Map[String, Gauge[F]]
+  )
   private object Instruments {
     def empty[F[_]]: Instruments[F] = Instruments(Map.empty, Map.empty)
   }
 
-  def apply[F[_]: Sync: Timer]: F[Store[F]] = {
+  def apply[F[_]: Sync: Timer]: F[Store[F]] =
     Ref[F].of(Instruments.empty[F]).map(new Impl[F](_))
-  }
 
   private class Impl[F[_]: Timer](
       instrumentsRef: Ref[F, Instruments[F]]
-  )(implicit F: Sync[F]) extends Store[F] {
+  )(implicit F: Sync[F])
+      extends Store[F] {
 
     def counter(name: String, initial: Long): F[Counter[F]] =
       instrument[Counter[F]](name, Instruments.counters, Counter(_, initial))
@@ -48,7 +48,7 @@ object Store {
 
       instrumentsRef.get.flatMap { instruments =>
         val counters = snapshotThem(instruments.counters.toList)
-        val gauges = snapshotThem(instruments.gauges.toList)
+        val gauges   = snapshotThem(instruments.gauges.toList)
         (counters, gauges).mapN(Snapshot.apply)
       }
     }
@@ -58,18 +58,18 @@ object Store {
         indexLens: Lens[Instruments[F], Map[String, Inst]],
         createInstrument: String => F[Inst]
     ): F[Inst] = {
-      def doCreate: F[Inst] = for {
-        instrument <- createInstrument(name)
-        _ <- instrumentsRef.update(indexLens.modify(_ + (name -> instrument)))
-      } yield instrument
+      def doCreate: F[Inst] =
+        for {
+          instrument <- createInstrument(name)
+          _          <- instrumentsRef.update(indexLens.modify(_ + (name -> instrument)))
+        } yield instrument
 
       for {
         instruments <- instrumentsRef.get
-        opt <- F.pure(indexLens.get(instruments).get(name))
-        inst <- opt.map(F.pure).getOrElse(doCreate)
+        opt         <- F.pure(indexLens.get(instruments).get(name))
+        inst        <- opt.map(F.pure).getOrElse(doCreate)
       } yield inst
     }
-
 
   }
 
