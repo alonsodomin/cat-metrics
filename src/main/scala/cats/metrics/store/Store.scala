@@ -18,7 +18,11 @@ trait Store[F[_]] {
 
   def histogram(name: String, dynamicRange: DynamicRange = DynamicRange.Default): F[Histogram[F]]
 
-  def chronometer(name: String, precision: TimeUnit, dynamicRange: DynamicRange = DynamicRange.Default): F[Chronometer[F]]
+  def chronometer(
+      name: String,
+      precision: TimeUnit,
+      dynamicRange: DynamicRange = DynamicRange.Default
+  ): F[Chronometer[F]]
 
   def snapshot: F[Snapshot]
 
@@ -53,16 +57,25 @@ object Store {
     def histogram(name: String, dynamicRange: DynamicRange): F[Histogram[F]] =
       instrument[Histogram[F]](name, Instruments.histograms, Histogram(_, dynamicRange))
 
-    def chronometer(name: String, precision: TimeUnit, dynamicRange: DynamicRange): F[Chronometer[F]] = ???
+    def chronometer(
+        name: String,
+        precision: TimeUnit,
+        dynamicRange: DynamicRange
+    ): F[Chronometer[F]] =
+      instrument[Chronometer[F]](
+        name,
+        Instruments.chronometers,
+        Chronometer(_, precision, dynamicRange)
+      )
 
     def snapshot: F[Snapshot] = {
       def snapshotThem[A](insts: List[(String, Instrument.Aux[F, A])]): F[List[Metric[A]]] =
         insts.traverse { case (name, inst) => inst.get.map(Metric(name, _)) }
 
       instrumentsRef.get.flatMap { instruments =>
-        val counters = snapshotThem(instruments.counters.toList)
-        val gauges   = snapshotThem(instruments.gauges.toList)
-        val histograms = snapshotThem(instruments.histograms.toList)
+        val counters     = snapshotThem(instruments.counters.toList)
+        val gauges       = snapshotThem(instruments.gauges.toList)
+        val histograms   = snapshotThem(instruments.histograms.toList)
         val chronometers = snapshotThem(instruments.chronometers.toList)
         (counters, gauges, histograms, chronometers).mapN(Snapshot.apply)
       }

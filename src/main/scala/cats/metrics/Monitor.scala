@@ -32,11 +32,12 @@ object Monitor {
         .drain
         .start
 
-    def initialise = for {
-      topic      <- Topic[F, Snapshot](Snapshot.Empty)
-      flushFiber <- startFlushing(topic)
-      reporters  <- Ref[F].of(Vector.empty[Fiber[F, Unit]])
-    } yield new Impl[F](flushFiber, topic, reporters)
+    def initialise =
+      for {
+        topic      <- Topic[F, Snapshot](Snapshot.Empty)
+        flushFiber <- startFlushing(topic)
+        reporters  <- Ref[F].of(Vector.empty[Fiber[F, Unit]])
+      } yield new Impl[F](flushFiber, topic, reporters)
 
     Resource.make(initialise)(_.shutdown()).map(_.asInstanceOf[Monitor[F]])
   }
@@ -45,11 +46,13 @@ object Monitor {
       flushFiber: Fiber[F, Unit],
       snapshotTopic: Topic[F, Snapshot],
       attachedFibers: Ref[F, Vector[Fiber[F, Unit]]]
-  )(implicit F: Concurrent[F]) extends Monitor[F] {
+  )(implicit F: Concurrent[F])
+      extends Monitor[F] {
 
     def attach(reporter: Reporter[F]): F[CancelToken[F]] = {
       def startReporter: F[Fiber[F, Unit]] =
-        snapshotTopic.subscribe(1)
+        snapshotTopic
+          .subscribe(1)
           .filter(!_.isEmpty)
           .evalMap(reporter.flush)
           .compile

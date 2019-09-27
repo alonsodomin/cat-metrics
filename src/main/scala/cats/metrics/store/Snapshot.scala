@@ -11,7 +11,8 @@ case class Snapshot(
     chronometers: List[Metric[Distribution[FiniteDuration]]]
 ) {
 
-  def isEmpty: Boolean = counters.isEmpty && gauges.isEmpty && histograms.isEmpty && chronometers.isEmpty
+  def isEmpty: Boolean =
+    counters.isEmpty && gauges.isEmpty && histograms.isEmpty && chronometers.isEmpty
 
 }
 object Snapshot {
