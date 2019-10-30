@@ -1,10 +1,11 @@
-package cats.metrics.store
+package cats.metrics
 
 import cats.metrics.instrument.Distribution
+import cats.metrics.store.Metric
 
 import scala.concurrent.duration.FiniteDuration
 
-case class Snapshot(
+final case class Snapshot(
     counters: List[Metric[Long]],
     gauges: List[Metric[Double]],
     histograms: List[Metric[Distribution[Long]]],

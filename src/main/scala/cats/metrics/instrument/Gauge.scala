@@ -19,6 +19,7 @@ object Gauge {
       extends Gauge[F] {
     def get: F[Double]          = value.get
     def set(v: Double): F[Unit] = value.set(v)
+    def reset: F[Unit]          = value.set(initial)
   }
 
 }

@@ -33,6 +33,7 @@ object Histogram {
 
     def record(value: Long): F[Unit] = F.delay(hist.recordValue(value))
 
+    def reset: F[Unit] = F.delay(hist.reset())
   }
 
 }

@@ -1,10 +1,13 @@
 package cats.metrics
 
-import cats.effect.{Resource, CancelToken, Concurrent, Fiber, Timer}
+import cats._
+import cats.effect.{CancelToken, Concurrent, Fiber, Resource, Timer}
 import cats.effect.concurrent.Ref
 import cats.effect.implicits._
 import cats.implicits._
-import cats.metrics.store.{Snapshot, Store}
+
+import cats.metrics.instrument.Instrument
+import cats.metrics.store.{Metric, Registry}
 
 import fs2.Stream
 import fs2.concurrent.Topic
@@ -17,16 +20,29 @@ trait Monitor[F[_]] {
 
 object Monitor {
 
-  case class ReporterAlreadyDetached() extends Exception
+  final case class ReporterAlreadyDetached() extends Exception
 
-  def apply[F[_]: Concurrent: Timer](
-      store: Store[F],
+  def apply[F[_]: Concurrent: Timer: Parallel](
+      registry: Registry[F],
       flushFrequency: FiniteDuration
   ): Resource[F, Monitor[F]] = {
+    def buildSnapshot: F[Snapshot] = {
+      def snapshotThem[A](insts: List[(String, Instrument.Aux[F, A])]): F[List[Metric[A]]] =
+        insts.parTraverse { case (name, inst) => inst.get.map(Metric(name, _)) <* inst.reset }
+
+      registry.instruments.flatMap { instruments =>
+        val counters     = snapshotThem(instruments.counters.toList)
+        val gauges       = snapshotThem(instruments.gauges.toList)
+        val histograms   = snapshotThem(instruments.histograms.toList)
+        val chronometers = snapshotThem(instruments.chronometers.toList)
+        (counters, gauges, histograms, chronometers).parMapN(Snapshot.apply)
+      }
+    }
+
     def startFlushing(topic: Topic[F, Snapshot]) =
       Stream
         .awakeEvery[F](flushFrequency)
-        .evalMap(_ => store.snapshot)
+        .evalMap(_ => buildSnapshot)
         .through(topic.publish)
         .compile
         .drain
@@ -42,12 +58,11 @@ object Monitor {
     Resource.make(initialise)(_.shutdown()).map(_.asInstanceOf[Monitor[F]])
   }
 
-  private class Impl[F[_]](
+  private class Impl[F[_]: Concurrent: Parallel](
       flushFiber: Fiber[F, Unit],
       snapshotTopic: Topic[F, Snapshot],
       attachedFibers: Ref[F, Vector[Fiber[F, Unit]]]
-  )(implicit F: Concurrent[F])
-      extends Monitor[F] {
+  ) extends Monitor[F] {
 
     def attach(reporter: Reporter[F]): F[CancelToken[F]] = {
       def startReporter: F[Fiber[F, Unit]] =
@@ -70,7 +85,7 @@ object Monitor {
           val idx = fibers.size
           (fibers :+ fiber, idx)
         }
-        detachToken <- detachReporterToken(idx)
+        detachToken <- detachReporterToken(idx.toLong)
       } yield detachToken
     }
 
@@ -78,7 +93,7 @@ object Monitor {
       for {
         _      <- flushFiber.cancel
         fibers <- attachedFibers.getAndSet(Vector.empty)
-        _      <- fibers.traverse_(_.cancel)
+        _      <- fibers.parTraverse_(_.cancel)
       } yield ()
   }
 

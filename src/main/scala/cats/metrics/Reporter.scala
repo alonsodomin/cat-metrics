@@ -1,7 +1,6 @@
 package cats.metrics
 
 import cats.effect.IO
-import cats.metrics.store.Snapshot
 
 trait Reporter[F[_]] {
   def flush(snapshot: Snapshot): F[Unit]

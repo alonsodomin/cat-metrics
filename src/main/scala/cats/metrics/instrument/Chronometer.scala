@@ -2,7 +2,6 @@ package cats.metrics.instrument
 
 import java.util.concurrent.TimeUnit
 
-import cats.data.Nested
 import cats.effect.implicits._
 import cats.effect.{Clock, Sync, Timer}
 import cats.implicits._
@@ -47,6 +46,7 @@ object Chronometer {
         _        <- histogram.record(duration.toUnit(precision).toLong)
       } yield ()
 
+    def reset: F[Unit] = histogram.reset
   }
 
 }

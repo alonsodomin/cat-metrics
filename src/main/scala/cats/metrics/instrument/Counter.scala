@@ -7,7 +7,7 @@ import cats.syntax.functor._
 trait Counter[F[_]] extends Instrument[F] {
   type Value = Long
 
-  def increment(): F[Unit]
+  def increment(): F[Unit] = incrementBy(1)
   def incrementBy(amount: Long): F[Unit]
 }
 
@@ -18,11 +18,13 @@ object Counter {
 
   private class Impl[F[_]: Sync: Timer](val name: String, initial: Long, value: Ref[F, Long])
       extends Counter[F] {
-    def increment(): F[Unit] = incrementBy(1)
+
     def incrementBy(amount: Long): F[Unit] =
       value.modify(curr => (curr + amount, ()))
 
     def get: F[Long] = value.get
+
+    def reset: F[Unit] = value.set(initial)
   }
 
 }

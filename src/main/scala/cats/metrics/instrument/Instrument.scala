@@ -4,6 +4,7 @@ trait Instrument[F[_]] {
   type Value
 
   def get: F[Value]
+  def reset: F[Unit]
 }
 
 object Instrument {

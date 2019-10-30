@@ -2,7 +2,7 @@ package cats.metrics.store
 
 import cats.Functor
 
-case class Metric[V](name: String, value: V)
+final case class Metric[V](name: String, value: V)
 object Metric {
 
   implicit val metricFunctor: Functor[Metric] = new Functor[Metric] {
