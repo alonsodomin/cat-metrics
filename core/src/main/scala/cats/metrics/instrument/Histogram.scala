@@ -1,6 +1,6 @@
 package cats.metrics.instrument
 
-import cats.effect.{Sync, Timer}
+import cats.effect.Sync
 import cats.implicits._
 
 import org.HdrHistogram.AtomicHistogram
