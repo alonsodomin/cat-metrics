@@ -20,8 +20,6 @@ trait Monitor[F[_]] {
 
 object Monitor {
 
-  final case class ReporterAlreadyDetached() extends Exception
-
   def apply[F[_]: Concurrent: Timer: Parallel](
       registry: Registry[F],
       flushFrequency: FiniteDuration

@@ -3,6 +3,8 @@ package cats.metrics.instrument
 trait Instrument[F[_]] {
   type Value
 
+  def name: String
+
   def get: F[Value]
   def reset: F[Unit]
 

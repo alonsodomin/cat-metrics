@@ -49,8 +49,8 @@ lazy val globalSettings = Seq(
     "-Ywarn-unused:privates",           // Warn if a private member is unused.
     "-Ywarn-value-discard"              // Warn when non-Unit expression results are unused.
   ),
-  scalacOptions in (Compile, console) := scalacOptions.value.filterNot(
-    Set("-Xlint:-unused,_", "-Xfatal-warnings")
+  scalacOptions in (Compile, console) := scalacOptions.value.filterNot(_.startsWith("-Ywarn-unused")).filterNot(
+    Set("-Xfatal-warnings")
   )
 ) ++ compilerPlugins
 
@@ -82,6 +82,8 @@ lazy val core = (project in file("core"))
       "import cats._",
       "import cats.implicits._",
       "import cats.effect._",
+      "import cats.metrics._",
+      "import cats.metrics.store._",
       "import scala.concurrent.duration._",
       "import scala.concurrent.ExecutionContext",
       "implicit val contextShift: ContextShift[IO] = IO.contextShift(ExecutionContext.global)",
