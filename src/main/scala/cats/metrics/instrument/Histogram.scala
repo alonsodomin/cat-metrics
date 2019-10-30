@@ -14,7 +14,7 @@ trait Histogram[F[_]] extends Instrument[F] {
 
 object Histogram {
 
-  def apply[F[_]: Timer](name: String, dynamicRange: DynamicRange = DynamicRange.Default)(
+  def apply[F[_]](name: String, dynamicRange: DynamicRange = DynamicRange.Default)(
       implicit F: Sync[F]
   ): F[Histogram[F]] =
     F.delay(
@@ -26,14 +26,22 @@ object Histogram {
       )
       .map(new Impl(name, _))
 
-  private class Impl[F[_]: Timer](val name: String, hist: AtomicHistogram)(implicit F: Sync[F])
+  private class Impl[F[_]](val name: String, hist: AtomicHistogram)(implicit F: Sync[F])
       extends Histogram[F] {
+
     def get: F[Distribution[Long]] =
       F.delay(Distribution(hist.getTotalCount))
 
     def record(value: Long): F[Unit] = F.delay(hist.recordValue(value))
 
     def reset: F[Unit] = F.delay(hist.reset())
+
+    def getAndReset: F[Distribution[Long]] = F.delay {
+      val dist = Distribution(hist.getTotalCount)
+      hist.reset()
+      dist
+    }
+
   }
 
 }

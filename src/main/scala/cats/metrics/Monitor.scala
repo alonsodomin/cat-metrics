@@ -28,7 +28,7 @@ object Monitor {
   ): Resource[F, Monitor[F]] = {
     def buildSnapshot: F[Snapshot] = {
       def snapshotThem[A](insts: List[(String, Instrument.Aux[F, A])]): F[List[Metric[A]]] =
-        insts.parTraverse { case (name, inst) => inst.get.map(Metric(name, _)) <* inst.reset }
+        insts.parTraverse { case (name, inst) => inst.getAndReset.map(Metric(name, _)) }
 
       registry.instruments.flatMap { instruments =>
         val counters     = snapshotThem(instruments.counters.toList)

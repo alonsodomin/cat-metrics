@@ -47,6 +47,9 @@ object Chronometer {
       } yield ()
 
     def reset: F[Unit] = histogram.reset
+
+    def getAndReset: F[Distribution[FiniteDuration]] =
+      histogram.getAndReset.map(_.map(FiniteDuration(_, precision)))
   }
 
 }

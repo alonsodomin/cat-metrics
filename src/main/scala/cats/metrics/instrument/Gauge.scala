@@ -20,6 +20,7 @@ object Gauge {
     def get: F[Double]          = value.get
     def set(v: Double): F[Unit] = value.set(v)
     def reset: F[Unit]          = value.set(initial)
+    def getAndReset: F[Double] = value.getAndSet(initial)
   }
 
 }

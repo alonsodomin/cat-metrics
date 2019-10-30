@@ -25,6 +25,8 @@ object Counter {
     def get: F[Long] = value.get
 
     def reset: F[Unit] = value.set(initial)
+
+    def getAndReset: F[Long] = value.getAndSet(initial)
   }
 
 }
