@@ -1,5 +1,3 @@
-ThisBuild / scalaVersion := "2.12.10"
-
 lazy val globalSettings = Seq(
   scalacOptions ++= Seq(
     "-deprecation", // Emit warning and location for usages of deprecated APIs.
@@ -14,9 +12,7 @@ lazy val globalSettings = Seq(
     "-unchecked",                       // Enable additional warnings where generated code depends on assumptions.
     "-Xcheckinit",                      // Wrap field accessors to throw an exception on uninitialized access.
     "-Xfatal-warnings",                 // Fail the compilation if there are any warnings.
-    "-Xfuture",                         // Turn on future language features.
     "-Xlint:adapted-args",              // Warn if an argument list is modified to match the receiver.
-    "-Xlint:by-name-right-associative", // By-name parameter of right associative operator.
     "-Xlint:constant",                  // Evaluation of a constant arithmetic expression results in an error.
     "-Xlint:delayedinit-select",        // Selecting member of DelayedInit.
     "-Xlint:doc-detached",              // A Scaladoc comment appears to be detached from its element.
@@ -31,15 +27,8 @@ lazy val globalSettings = Seq(
     "-Xlint:private-shadow",            // A private field (or class parameter) shadows a superclass field.
     "-Xlint:stars-align",               // Pattern sequence wildcard must align with sequence component.
     "-Xlint:type-parameter-shadow",     // A local type parameter shadows a type already in scope.
-    "-Xlint:unsound-match",             // Pattern match may not be typesafe.
-    "-Yno-adapted-args",                // Do not adapt an argument list (either by inserting () or creating a tuple) to match the receiver.
-    "-Ypartial-unification",            // Enable partial unification in type constructor inference
     "-Ywarn-dead-code",                 // Warn when dead code is identified.
     "-Ywarn-extra-implicit",            // Warn when more than one implicit parameter section is defined.
-    "-Ywarn-inaccessible",              // Warn about inaccessible types in method signatures.
-    "-Ywarn-infer-any",                 // Warn when a type argument is inferred to be `Any`.
-    "-Ywarn-nullary-override",          // Warn when non-nullary `def f()' overrides nullary `def f'.
-    "-Ywarn-nullary-unit",              // Warn when nullary methods return Unit.
     "-Ywarn-numeric-widen",             // Warn when numerics are widened.
     "-Ywarn-unused:implicits",          // Warn if an implicit parameter is unused.
     "-Ywarn-unused:imports",            // Warn if an import selector is not referenced.
@@ -51,22 +40,50 @@ lazy val globalSettings = Seq(
   ),
   scalacOptions in (Compile, console) := scalacOptions.value.filterNot(_.startsWith("-Ywarn-unused")).filterNot(
     Set("-Xfatal-warnings")
-  )
+  ),
+  scalacOptions ++= {
+    CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some((2, x)) if x <= 12 =>
+        Seq(
+          "-Xfuture",                         // Turn on future language features.
+          "-Xlint:unsound-match",             // Pattern match may not be typesafe.
+          "-Yno-adapted-args",                // Do not adapt an argument list (either by inserting () or creating a tuple) to match the receiver.
+          "-Ypartial-unification",            // Enable partial unification in type constructor inference
+          "-Ywarn-inaccessible",              // Warn about inaccessible types in method signatures.
+          "-Ywarn-infer-any",                 // Warn when a type argument is inferred to be `Any`.
+          "-Ywarn-nullary-override",          // Warn when non-nullary `def f()' overrides nullary `def f'.
+          "-Ywarn-nullary-unit",              // Warn when nullary methods return Unit.
+          "-Xlint:by-name-right-associative", // By-name parameter of right associative operator.
+        )
+
+      case Some((2, x)) if x == 13 =>
+        Seq("-Ymacro-annotations")
+
+      case _ => Nil
+    }
+  }
 ) ++ compilerPlugins
 
 lazy val compilerPlugins = Seq(
   libraryDependencies ++= Seq(
     compilerPlugin("com.olegpy"      %% "better-monadic-for" % "0.3.1"),
     compilerPlugin("org.typelevel"   %% "kind-projector"     % "0.10.3"),
-    compilerPlugin("org.scalamacros" %% "paradise"           % "2.1.1" cross CrossVersion.full)
-  )
+  ),
+  libraryDependencies ++= {
+    CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some((2, x)) if x <= 12 =>
+        Seq(compilerPlugin("org.scalamacros" %% "paradise"           % "2.1.1" cross CrossVersion.full))
+
+      case _ => Nil
+    }
+  }
 )
 
 lazy val catodromo = (project in file("."))
   .settings(globalSettings)
   .aggregate(core)
 
-lazy val core = (project in file("core"))
+lazy val core = (project in file("modules/core"))
   .settings(globalSettings)
   .settings(
     moduleName := "catodromo-core",
