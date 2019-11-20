@@ -1,10 +1,11 @@
 package cats.metrics
 package store
 
+import java.util.concurrent.TimeUnit
+
 import cats.effect.concurrent.Ref
 import cats.effect._
 import cats.implicits._
-
 import cats.metrics.instrument.{Chronometer, Counter, DynamicRange, Gauge, Histogram, Instrument}
 
 import monocle.Lens
@@ -25,7 +26,7 @@ trait Registry[F[_]] {
   def chronometers: F[Iterable[Chronometer[F]]]
   def chronometer(
       name: String,
-      precision: TimeUnit,
+      precision: TimeUnit = TimeUnit.MICROSECONDS,
       dynamicRange: DynamicRange = DynamicRange.Default
   ): F[Chronometer[F]]
 

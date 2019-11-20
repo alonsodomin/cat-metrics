@@ -12,7 +12,7 @@ import cats.metrics.store.{Metric, Registry}
 import fs2.Stream
 import fs2.concurrent.Topic
 
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
 
 trait Monitor[F[_]] {
   def attach(reporter: Reporter[F]): F[CancelToken[F]]
@@ -22,7 +22,7 @@ object Monitor {
 
   def apply[F[_]: Concurrent: Timer: Parallel](
       registry: Registry[F],
-      flushFrequency: FiniteDuration
+      flushFrequency: FiniteDuration = 5.seconds
   ): Resource[F, Monitor[F]] = {
     def buildSnapshot: F[Snapshot] = {
       def snapshotThem[A](insts: List[(String, Instrument.Aux[F, A])]): F[List[Metric[A]]] =

@@ -9,4 +9,5 @@ object Versions {
   val hdrHistogram = "2.1.11"
   val monocle      = "2.0.0"
   val fs2          = "2.0.1"
+  val sttp         = "2.0.0-RC2"
 }
