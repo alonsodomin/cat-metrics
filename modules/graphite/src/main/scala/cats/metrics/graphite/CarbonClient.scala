@@ -3,7 +3,7 @@ package cats.metrics.graphite
 import java.net.InetSocketAddress
 import java.nio.charset.StandardCharsets
 
-import cats.effect.{Blocker, ContextShift, Resource, Sync}
+import cats.effect.{Blocker, Concurrent, ContextShift, Resource}
 import fs2.Chunk
 import fs2.io.tcp._
 
@@ -11,11 +11,11 @@ trait CarbonClient[F[_]] {
   def send(metric: CarbonMetric): F[Unit]
 }
 object CarbonClient {
-  def apply[F[_]](
+  def apply[F[_]: Concurrent: ContextShift](
       address: InetSocketAddress,
       blocker: Blocker
-  )(implicit F: Sync[F], cs: ContextShift[F]): Resource[F, CarbonClient[F]] = {
-    val socket = SocketGroup[F](blocker).flatMap(_.client(address))
+  ): Resource[F, CarbonClient[F]] = {
+    val socket = SocketGroup[F](blocker).flatMap(_.client[F](address))
     socket.map(new Impl(_))
   }
 

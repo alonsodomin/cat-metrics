@@ -1,3 +1,5 @@
+import sbtcrossproject.CrossPlugin.autoImport.{crossProject, CrossType}
+
 lazy val globalSettings = Seq(
   scalacOptions ++= Seq(
     "-deprecation", // Emit warning and location for usages of deprecated APIs.
@@ -33,7 +35,7 @@ lazy val globalSettings = Seq(
     "-Ywarn-unused:implicits",       // Warn if an implicit parameter is unused.
     "-Ywarn-unused:imports",         // Warn if an import selector is not referenced.
     "-Ywarn-unused:locals",          // Warn if a local definition is unused.
-    "-Ywarn-unused:params",          // Warn if a value parameter is unused.
+    //"-Ywarn-unused:params",          // Warn if a value parameter is unused.
     "-Ywarn-unused:patvars",         // Warn if a variable bound in a pattern is unused.
     "-Ywarn-unused:privates",        // Warn if a private member is unused.
     "-Ywarn-value-discard"           // Warn when non-Unit expression results are unused.
@@ -97,24 +99,38 @@ lazy val moduleSettings = Seq(
 
 lazy val catodromo = (project in file("."))
   .settings(globalSettings)
-  .aggregate(core, graphite)
+  .aggregate(core.jvm, core.js, jmx, graphite)
 
 // Modules
 
-lazy val core = (project in file("modules/core"))
+lazy val core = (crossProject(JSPlatform, JVMPlatform)
+  .withoutSuffixFor(JVMPlatform)
+  .crossType(CrossType.Full) in file("modules/core"))
   .settings(globalSettings)
   .settings(moduleSettings)
   .settings(
     moduleName := "catodromo-core",
     libraryDependencies ++= Seq(
-      "org.hdrhistogram"           % "HdrHistogram"   % Versions.hdrHistogram,
-      "com.github.julien-truffaut" %% "monocle-core"  % Versions.monocle,
-      "com.github.julien-truffaut" %% "monocle-macro" % Versions.monocle,
-      "org.typelevel"              %% "cats-effect"   % Versions.cats.effect,
-      "org.typelevel"              %% "kittens"       % Versions.cats.kittens,
-      "co.fs2"                     %% "fs2-core"      % Versions.fs2
+      "com.github.julien-truffaut" %%% "monocle-core"  % Versions.monocle,
+      "com.github.julien-truffaut" %%% "monocle-macro" % Versions.monocle,
+      "org.typelevel"              %%% "cats-effect"   % Versions.cats.effect,
+      "org.typelevel"              %%% "kittens"       % Versions.cats.kittens,
+      "co.fs2"                     %%% "fs2-core"      % Versions.fs2
     )
   )
+  .jvmSettings(
+    libraryDependencies ++= Seq(
+      "org.hdrhistogram"           % "HdrHistogram"   % Versions.hdrHistogram
+    )
+  )
+
+lazy val jmx = (project in file("modules/jmx"))
+  .settings(globalSettings)
+  .settings(moduleSettings)
+  .settings(
+    moduleName := "catodromo-jmx"
+  )
+  .dependsOn(core.jvm)
 
 lazy val graphite = (project in file("modules/graphite"))
   .settings(globalSettings)
@@ -122,11 +138,10 @@ lazy val graphite = (project in file("modules/graphite"))
   .settings(
     moduleName := "catodromo-graphite",
     libraryDependencies ++= Seq(
-      "com.softwaremill.sttp.client" %% "async-http-client-backend-cats" % Versions.sttp,
-      "co.fs2"                       %% "fs2-io"                         % Versions.fs2
+      "co.fs2" %% "fs2-io" % Versions.fs2
     )
   )
-  .dependsOn(core)
+  .dependsOn(core.jvm)
 
 // Examples
 
