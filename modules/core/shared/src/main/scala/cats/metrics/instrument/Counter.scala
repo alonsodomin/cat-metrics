@@ -1,7 +1,6 @@
 package cats.metrics.instrument
 
 import cats.effect._
-import cats.effect.concurrent._
 import cats.syntax.functor._
 
 trait Counter[F[_]] extends Instrument[F] {
@@ -13,10 +12,10 @@ trait Counter[F[_]] extends Instrument[F] {
 
 object Counter {
 
-  def apply[F[_]: Sync: Timer](name: String, initial: Long = 0L): F[Counter[F]] =
+  def apply[F[_]: Sync](name: String, initial: Long = 0L): F[Counter[F]] =
     Ref[F].of(initial).map(new Impl[F](name, initial, _))
 
-  private class Impl[F[_]: Sync: Timer](val name: String, initial: Long, value: Ref[F, Long])
+  private class Impl[F[_]: Sync](val name: String, initial: Long, value: Ref[F, Long])
       extends Counter[F] {
 
     def incrementBy(amount: Long): F[Unit] =

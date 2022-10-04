@@ -1,26 +1,23 @@
 package cats.metrics
 
-import cats._
-import cats.effect.{CancelToken, Concurrent, Fiber, Resource, Timer}
-import cats.effect.concurrent.Ref
+import cats.data.OptionT
+import cats.effect.{Concurrent, Fiber, Ref, Resource, Temporal}
 import cats.effect.implicits._
 import cats.implicits._
-
 import cats.metrics.instrument.Instrument
 import cats.metrics.store.{Metric, Registry}
-
 import fs2.Stream
 import fs2.concurrent.Topic
 
 import scala.concurrent.duration._
 
 trait Monitor[F[_]] {
-  def attach(reporter: Reporter[F]): F[CancelToken[F]]
+  def attach(reporter: Reporter[F]): F[Unit]
 }
 
 object Monitor {
 
-  def apply[F[_]: Concurrent: Timer: Parallel](
+  def apply[F[_]: Concurrent: Temporal](
       registry: Registry[F],
       flushFrequency: FiniteDuration = 5.seconds
   ): Resource[F, Monitor[F]] = {
@@ -48,22 +45,22 @@ object Monitor {
 
     def initialise =
       for {
-        topic      <- Topic[F, Snapshot](Snapshot.Empty)
+        topic      <- Topic[F, Snapshot]
         flushFiber <- startFlushing(topic)
-        reporters  <- Ref[F].of(Vector.empty[Fiber[F, Unit]])
+        reporters  <- Ref[F].of(Vector.empty[Fiber[F, Throwable, Unit]])
       } yield new Impl[F](flushFiber, topic, reporters)
 
     Resource.make(initialise)(_.shutdown()).map(_.asInstanceOf[Monitor[F]])
   }
 
-  private class Impl[F[_]: Concurrent: Parallel](
-      flushFiber: Fiber[F, Unit],
+  private class Impl[F[_]: Concurrent](
+      flushFiber: Fiber[F, Throwable, Unit],
       snapshotTopic: Topic[F, Snapshot],
-      attachedFibers: Ref[F, Vector[Fiber[F, Unit]]]
+      attachedFibers: Ref[F, Vector[Fiber[F, Throwable, Unit]]]
   ) extends Monitor[F] {
 
-    def attach(reporter: Reporter[F]): F[CancelToken[F]] = {
-      def startReporter: F[Fiber[F, Unit]] =
+    def attach(reporter: Reporter[F]): F[Unit] = {
+      def startReporter: F[Fiber[F, Throwable, Unit]] =
         snapshotTopic
           .subscribe(1)
           .filter(!_.isEmpty)
@@ -72,9 +69,9 @@ object Monitor {
           .drain
           .start
 
-      def detachReporterToken(idx: Long): F[CancelToken[F]] = {
+      def detachReporterToken(idx: Long): F[Unit] = {
         val reporterOpt = attachedFibers.get.map(_.get(idx))
-        reporterOpt.map(_.map(_.cancel).getOrElse(ReporterAlreadyDetached().raiseError[F, Unit]))
+        OptionT(reporterOpt).semiflatMap(_.cancel).getOrElseF(ReporterAlreadyDetached().raiseError[F, Unit])
       }
 
       for {

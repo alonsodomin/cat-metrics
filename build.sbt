@@ -1,4 +1,7 @@
-import sbtcrossproject.CrossPlugin.autoImport.{crossProject, CrossType}
+inThisBuild(List(
+  crossScalaVersions            := Seq("2.13.8"),
+  scalaVersion                  := crossScalaVersions.value.head
+))
 
 lazy val globalSettings = Seq(
   scalacOptions ++= Seq(
@@ -21,7 +24,6 @@ lazy val globalSettings = Seq(
     "-Xlint:inaccessible",           // Warn about inaccessible types in method signatures.
     "-Xlint:infer-any",              // Warn when a type argument is inferred to be `Any`.
     "-Xlint:missing-interpolator",   // A string literal appears to be missing an interpolator id.
-    "-Xlint:nullary-override",       // Warn when non-nullary `def f()' overrides nullary `def f'.
     "-Xlint:nullary-unit",           // Warn when nullary methods return Unit.
     "-Xlint:option-implicit",        // Option.apply used implicit view.
     "-Xlint:package-object-classes", // Class or object defined in package object.
@@ -40,7 +42,7 @@ lazy val globalSettings = Seq(
     "-Ywarn-unused:privates",        // Warn if a private member is unused.
     "-Ywarn-value-discard"           // Warn when non-Unit expression results are unused.
   ),
-  scalacOptions in (Compile, console) := scalacOptions.value
+  Compile / console / scalacOptions := scalacOptions.value
     .filterNot(_.startsWith("-Ywarn-unused"))
     .filterNot(
       Set("-Xfatal-warnings")
@@ -71,7 +73,7 @@ lazy val globalSettings = Seq(
 lazy val compilerPlugins = Seq(
   libraryDependencies ++= Seq(
     compilerPlugin("com.olegpy"    %% "better-monadic-for" % "0.3.1"),
-    compilerPlugin("org.typelevel" %% "kind-projector"     % "0.10.3")
+    compilerPlugin("org.typelevel" % "kind-projector"     % "0.13.2" cross CrossVersion.full)
   ),
   libraryDependencies ++= {
     CrossVersion.partialVersion(scalaVersion.value) match {
@@ -84,7 +86,7 @@ lazy val compilerPlugins = Seq(
 )
 
 lazy val moduleSettings = Seq(
-  initialCommands in console += Seq(
+  console / initialCommands += Seq(
     "import cats._",
     "import cats.implicits._",
     "import cats.effect._",
@@ -92,8 +94,6 @@ lazy val moduleSettings = Seq(
     "import cats.metrics.store._",
     "import scala.concurrent.duration._",
     "import scala.concurrent.ExecutionContext",
-    "implicit val contextShift: ContextShift[IO] = IO.contextShift(ExecutionContext.global)",
-    "implicit val timer: Timer[IO] = IO.timer(ExecutionContext.global)"
   ).mkString("\n")
 )
 
@@ -111,8 +111,8 @@ lazy val core = (crossProject(JSPlatform, JVMPlatform)
   .settings(
     moduleName := "catodromo-core",
     libraryDependencies ++= Seq(
-      "com.github.julien-truffaut" %%% "monocle-core"  % Versions.monocle,
-      "com.github.julien-truffaut" %%% "monocle-macro" % Versions.monocle,
+      "dev.optics" %%% "monocle-core"  % Versions.monocle,
+      "dev.optics" %%% "monocle-macro" % Versions.monocle,
       "org.typelevel"              %%% "cats-effect"   % Versions.cats.effect,
       "org.typelevel"              %%% "kittens"       % Versions.cats.kittens,
       "co.fs2"                     %%% "fs2-core"      % Versions.fs2

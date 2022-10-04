@@ -10,5 +10,5 @@ object Reporter {
     override def flush(snapshot: Snapshot): F[Unit] = f(snapshot)
   }
 
-  def stdout: Reporter[IO] = instance[IO](snap => IO(println(snap.toString)))
+  def stdout: Reporter[IO] = instance[IO](IO.println)
 }

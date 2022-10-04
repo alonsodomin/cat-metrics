@@ -3,7 +3,6 @@ package store
 
 import java.util.concurrent.TimeUnit
 
-import cats.effect.concurrent.Ref
 import cats.effect._
 import cats.implicits._
 import cats.metrics.instrument.{Chronometer, Counter, DynamicRange, Gauge, Histogram, Instrument}
@@ -36,10 +35,10 @@ trait Registry[F[_]] {
 
 object Registry {
 
-  def apply[F[_]: Sync: Timer]: F[Registry[F]] =
+  def apply[F[_]: Sync]: F[Registry[F]] =
     Ref[F].of(Instruments.empty[F]).map(new Impl[F](_))
 
-  private class Impl[F[_]: Timer](
+  private class Impl[F[_]](
       instrumentsRef: Ref[F, Instruments[F]]
   )(implicit F: Sync[F])
       extends Registry[F] {
